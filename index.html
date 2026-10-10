@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Network Diagram Builder | Rahul Rathod</title>
+<meta name="theme-color" content="#07111f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%2307111f'/%3E%3Ctext x='32' y='46' font-family='monospace' font-size='40' font-weight='700' text-anchor='middle' fill='%2364b6ff'%3ER%3C/text%3E%3C/svg%3E">
+
+<script>
+(function(){try{var t=localStorage.getItem('rahul-theme');if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches)t='light';if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}})();
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07111f;--panel:#0b192b;--panel2:#0e2137;--line:#1b3855;
+  --text:#e8f1fb;--muted:#8fa6bf;--cyan:#64b6ff;--amber:#ffb627;
+  --green:#5ee6a8;--shadow:0 18px 60px rgba(0,0,0,.24);
+}
+:root[data-theme="light"]{
+  --bg:#eef4fa;--panel:#fff;--panel2:#f6f9fc;--line:#d5e1ed;
+  --text:#10233b;--muted:#55708f;--cyan:#1767b1;--amber:#9b6800;
+  --green:#087a4d;--shadow:0 18px 50px rgba(36,72,110,.10);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;
+  background-image:linear-gradient(rgba(100,182,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(100,182,255,.045) 1px,transparent 1px);
+  background-size:32px 32px;}
+a{color:inherit}
+.wrap{max-width:1240px;margin:auto;padding:26px 22px 70px}
+.topbar{position:sticky;top:12px;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 15px;margin-bottom:22px;background:var(--panel);background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);backdrop-filter:blur(14px);box-shadow:var(--shadow)}
+.brand{font:600 12px "JetBrains Mono",monospace;color:var(--muted);letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.actions{display:flex;gap:8px;flex-shrink:0}
+button,.btn{border:1px solid var(--line);background:transparent;color:var(--text);padding:8px 12px;text-decoration:none;font:600 11px "JetBrains Mono",monospace;cursor:pointer;border-radius:3px}
+button:hover,.btn:hover{border-color:var(--cyan);color:var(--cyan)}
+button.active{border-color:var(--cyan);color:var(--cyan);background:rgba(100,182,255,.08)}
+.ref{font:600 11px "JetBrains Mono",monospace;color:var(--cyan);letter-spacing:.08em;margin-bottom:4px}
+h1{font-size:20px;margin:0 0 2px;letter-spacing:-.02em}
+.section-note{font:400 11px "JetBrains Mono",monospace;color:var(--muted);margin-bottom:18px;display:block}
+
+.toolbar{background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:4px;padding:16px 18px;margin-bottom:16px}
+.toolbar-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.toolbar-row:last-of-type{margin-bottom:0}
+.toolbar-label{font:600 10px "JetBrains Mono",monospace;color:var(--muted);letter-spacing:.08em;margin-right:2px;white-space:nowrap}
+select,input[type=text]{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:8px 10px;font:500 12px Inter,sans-serif;border-radius:3px}
+select:focus,input:focus{outline:2px solid var(--cyan);outline-offset:1px}
+.divider{width:1px;align-self:stretch;background:var(--line);margin:0 4px}
+.hint{font:400 11px "JetBrains Mono",monospace;color:var(--muted);margin-top:4px}
+
+.stage-wrap{background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:4px;overflow:hidden}
+#stage{width:100%;height:600px;display:block;cursor:default;touch-action:none}
+.node{cursor:grab}
+.node:active{cursor:grabbing}
+.node.selected rect, .node.selected polygon, .node.selected ellipse{stroke:var(--amber)!important;stroke-width:3!important}
+.zone{cursor:grab}
+.zone:active{cursor:grabbing}
+.zone-resize{cursor:nwse-resize}
+
+footer{text-align:center;color:var(--muted);font:400 11px "JetBrains Mono",monospace;padding-top:28px}
+@media(max-width:700px){#stage{height:460px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="topbar">
+  <div class="brand">RAHUL-RATHOD // NETWORK DIAGRAM BUILDER</div>
+  <div class="actions">
+    <a class="btn" href="https://rahulrgit.github.io/projects.html">← PROJECTS</a>
+    <button id="theme" type="button">LIGHT/DARK</button>
+  </div>
+</header>
+
+<div class="ref">TOOL — NETWORK DIAGRAM</div>
+<h1>Network Diagram Builder</h1>
+<span class="section-note">Design a full company network — every common device type, with IP/CIDR and VLAN, grouped into zones.</span>
+
+<div class="toolbar">
+  <div class="toolbar-row">
+    <span class="toolbar-label">ADD DEVICE</span>
+    <select id="devType">
+      <optgroup label="Network Infrastructure">
+        <option value="router">Router</option>
+        <option value="switch">Switch (L2/L3)</option>
+        <option value="accesspoint">Wireless Access Point</option>
+        <option value="modem">Modem / ONT</option>
+        <option value="hub">Hub</option>
+        <option value="loadbalancer">Load Balancer</option>
+        <option value="patchpanel">Patch Panel</option>
+      </optgroup>
+      <optgroup label="Security">
+        <option value="firewall">Firewall</option>
+        <option value="idsips">IDS / IPS</option>
+        <option value="vpngateway">VPN Gateway</option>
+        <option value="proxy">Proxy Server</option>
+      </optgroup>
+      <optgroup label="Servers">
+        <option value="dcserver">Domain Controller / AD</option>
+        <option value="dnsserver">DNS Server</option>
+        <option value="dhcpserver">DHCP Server</option>
+        <option value="fileserver">File Server</option>
+        <option value="webserver">Web Server</option>
+        <option value="appserver">Application Server</option>
+        <option value="dbserver">Database Server</option>
+        <option value="mailserver">Mail Server</option>
+        <option value="hypervisor">Hypervisor / VM Host</option>
+        <option value="nas">NAS / Storage</option>
+        <option value="backupserver">Backup Server</option>
+        <option value="printserver">Print Server</option>
+      </optgroup>
+      <optgroup label="Endpoints">
+        <option value="pc">Desktop PC</option>
+        <option value="laptop">Laptop</option>
+        <option value="printer">Printer / MFP</option>
+        <option value="voip">VoIP Phone</option>
+        <option value="mobile">Mobile Device</option>
+        <option value="iot">IoT Device</option>
+        <option value="cctv">CCTV Camera</option>
+        <option value="biometric">Biometric Device</option>
+        <option value="ups">UPS</option>
+      </optgroup>
+      <optgroup label="External">
+        <option value="internet">Internet / ISP</option>
+        <option value="cloud">Cloud (AWS/Azure/GCP)</option>
+        <option value="branch">Branch Office</option>
+        <option value="remoteuser">Remote User / VPN Client</option>
+      </optgroup>
+    </select>
+    <input type="text" id="devLabel" placeholder="Label (e.g. Core-SW-01)" style="width:160px">
+    <input type="text" id="devIp" placeholder="IP / CIDR (e.g. 192.168.10.1/24)" style="width:190px">
+    <input type="text" id="devVlan" placeholder="VLAN (optional)" style="width:100px">
+    <button id="addBtn">+ ADD DEVICE</button>
+  </div>
+  <div class="toolbar-row">
+    <span class="toolbar-label">ZONE</span>
+    <input type="text" id="zoneLabel" placeholder="Zone name (e.g. DMZ, Floor-2, HR Dept)" style="width:220px">
+    <button id="addZoneBtn">+ ADD ZONE</button>
+    <div class="divider"></div>
+    <button id="editBtn">✏ EDIT SELECTED</button>
+    <button id="connectBtn">🔗 CONNECT MODE</button>
+    <button id="deleteBtn">🗑 DELETE SELECTED</button>
+    <div class="divider"></div>
+    <button id="exportBtn">⬇ EXPORT PNG</button>
+    <button id="clearBtn">CLEAR ALL</button>
+  </div>
+  <div class="hint">Drag devices or zones to arrange the layout; drag a zone's bottom-right corner to resize it. Connect Mode: click one device then another to link them. Select a device/zone first for Edit or Delete.</div>
+</div>
+
+<div class="stage-wrap">
+  <svg id="stage" viewBox="0 0 1200 600" xmlns="http://www.w3.org/2000/svg"></svg>
+</div>
+
+<footer>REV.2026 · RAHUL RATHOD · KALYAN, MUMBAI</footer>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement,themeBtn=document.getElementById('theme');
+  function isLight(){return root.getAttribute('data-theme')==='light'}
+  themeBtn.addEventListener('click',function(){
+    var next=isLight()?'dark':'light';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('rahul-theme',next)}catch(e){}
+    render();
+  });
+})();
+
+(function(){
+  var svg = document.getElementById('stage');
+  var nodes = [];
+  var links = [];
+  var zones = [];
+  var nodeIdSeq = 1, zoneIdSeq = 1;
+  var connectMode = false;
+  var connectFirst = null;
+  var selected = null; // {type:'node'|'zone', id:...}
+  var dragging = null; // {kind:'node'|'zone'|'zone-resize', id:...}
+  var dragOffset = {x:0,y:0};
+
+  var cssVar = function(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); };
+
+  var TYPE_META = {
+    router:      {label:'ROUTER',        shape:'diamond', color:'--cyan'},
+    switch:      {label:'SWITCH',        shape:'rect',     color:'--cyan'},
+    accesspoint: {label:'ACCESS POINT',  shape:'rect',     color:'--cyan'},
+    modem:       {label:'MODEM / ONT',   shape:'rect',     color:'--cyan'},
+    hub:         {label:'HUB',           shape:'rect',     color:'--cyan'},
+    loadbalancer:{label:'LOAD BALANCER', shape:'rect',     color:'--cyan'},
+    patchpanel:  {label:'PATCH PANEL',   shape:'rect',     color:'--cyan'},
+
+    firewall:    {label:'FIREWALL',      shape:'hex',      color:'--amber'},
+    idsips:      {label:'IDS / IPS',     shape:'hex',      color:'--amber'},
+    vpngateway:  {label:'VPN GATEWAY',   shape:'hex',      color:'--amber'},
+    proxy:       {label:'PROXY',         shape:'hex',      color:'--amber'},
+
+    dcserver:    {label:'DOMAIN CTRL',   shape:'rect',     color:'--green'},
+    dnsserver:   {label:'DNS SERVER',    shape:'rect',     color:'--green'},
+    dhcpserver:  {label:'DHCP SERVER',   shape:'rect',     color:'--green'},
+    fileserver:  {label:'FILE SERVER',   shape:'rect',     color:'--green'},
+    webserver:   {label:'WEB SERVER',    shape:'rect',     color:'--green'},
+    appserver:   {label:'APP SERVER',    shape:'rect',     color:'--green'},
+    dbserver:    {label:'DB SERVER',     shape:'rect',     color:'--green'},
+    mailserver:  {label:'MAIL SERVER',   shape:'rect',     color:'--green'},
+    hypervisor:  {label:'HYPERVISOR',    shape:'rect',     color:'--green'},
+    nas:         {label:'NAS / STORAGE', shape:'rect',     color:'--green'},
+    backupserver:{label:'BACKUP SERVER', shape:'rect',     color:'--green'},
+    printserver: {label:'PRINT SERVER',  shape:'rect',     color:'--green'},
+
+    pc:          {label:'PC',            shape:'rect',     color:'--muted'},
+    laptop:      {label:'LAPTOP',        shape:'rect',     color:'--muted'},
+    printer:     {label:'PRINTER',       shape:'rect',     color:'--muted'},
+    voip:        {label:'VOIP PHONE',    shape:'rect',     color:'--muted'},
+    mobile:      {label:'MOBILE',        shape:'rect',     color:'--muted'},
+    iot:         {label:'IOT DEVICE',    shape:'rect',     color:'--muted'},
+    cctv:        {label:'CCTV',          shape:'rect',     color:'--muted'},
+    biometric:   {label:'BIOMETRIC',     shape:'rect',     color:'--muted'},
+    ups:         {label:'UPS',           shape:'rect',     color:'--muted'},
+
+    internet:    {label:'INTERNET',      shape:'cloud',    color:'--muted'},
+    cloud:       {label:'CLOUD',         shape:'cloud',    color:'--muted'},
+    branch:      {label:'BRANCH OFFICE', shape:'cloud',    color:'--muted'},
+    remoteuser:  {label:'REMOTE USER',   shape:'rect',     color:'--muted'}
+  };
+
+  function svgEl(tag, attrs){
+    var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (var k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+  function randPos(){ return { x: 160 + Math.random()*850, y: 110 + Math.random()*380 }; }
+
+  function addNode(type, label, ip, vlan){
+    var p = randPos();
+    nodes.push({ id:'n'+(nodeIdSeq++), type:type, label: label || TYPE_META[type].label, ip: ip||'', vlan: vlan||'', x:p.x, y:p.y });
+    render();
+  }
+  function addZone(label){
+    zones.push({ id:'z'+(zoneIdSeq++), label: label || 'Zone', x:80+Math.random()*200, y:60+Math.random()*120, w:360, h:240 });
+    render();
+  }
+  function removeNode(id){
+    nodes = nodes.filter(function(n){ return n.id !== id; });
+    links = links.filter(function(l){ return l.a !== id && l.b !== id; });
+  }
+  function removeZone(id){ zones = zones.filter(function(z){ return z.id !== id; }); }
+  function nodeById(id){ for (var i=0;i<nodes.length;i++) if (nodes[i].id===id) return nodes[i]; return null; }
+  function zoneById(id){ for (var i=0;i<zones.length;i++) if (zones[i].id===id) return zones[i]; return null; }
+
+  function shapeNode(g, n){
+    var meta = TYPE_META[n.type];
+    var color = cssVar(meta.color);
+    var w = 128, h = 56;
+
+    if (meta.shape === 'diamond'){
+      var pts = [[0,-h/2-10],[w/2+14,0],[0,h/2+10],[-(w/2+14),0]].map(function(p){return p[0]+','+p[1];}).join(' ');
+      g.appendChild(svgEl('polygon',{points:pts, fill:cssVar('--panel2'), stroke:color, 'stroke-width':2}));
+    } else if (meta.shape === 'hex'){
+      var hw=w/2+10, hh=h/2+6;
+      var hpts=[[-hw*0.55,-hh],[hw*0.55,-hh],[hw,0],[hw*0.55,hh],[-hw*0.55,hh],[-hw,0]].map(function(p){return p[0]+','+p[1];}).join(' ');
+      g.appendChild(svgEl('polygon',{points:hpts, fill:cssVar('--panel2'), stroke:color, 'stroke-width':2}));
+    } else if (meta.shape === 'cloud'){
+      g.appendChild(svgEl('ellipse',{cx:0, cy:0, rx:w/2+14, ry:h/2+8, fill:cssVar('--panel2'), stroke:color, 'stroke-width':2}));
+    } else {
+      g.appendChild(svgEl('rect',{x:-w/2, y:-h/2, width:w, height:h, rx:6, fill:cssVar('--panel2'), stroke:color, 'stroke-width':2}));
+    }
+
+    var sub = [];
+    if (n.ip) sub.push(n.ip);
+    if (n.vlan) sub.push('VLAN '+n.vlan);
+
+    var t1 = svgEl('text',{x:0, y: sub.length ? -4 : 5, 'text-anchor':'middle', 'font-family':'Inter, sans-serif', 'font-weight':'700', 'font-size':'12', fill:cssVar('--text')});
+    t1.textContent = n.label;
+    g.appendChild(t1);
+
+    if (sub.length){
+      var t2 = svgEl('text',{x:0, y:13, 'text-anchor':'middle', 'font-family':'JetBrains Mono, monospace', 'font-size':'9.5', fill:cssVar('--muted')});
+      t2.textContent = sub.join('  ·  ');
+      g.appendChild(t2);
+    }
+
+    var tag = svgEl('text',{x:0, y:-h/2-16, 'text-anchor':'middle', 'font-family':'JetBrains Mono, monospace', 'font-weight':'600', 'font-size':'9', fill:color, 'letter-spacing':'1px'});
+    tag.textContent = meta.label;
+    g.appendChild(tag);
+  }
+
+  function render(){
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    zones.forEach(function(z){
+      var g = svgEl('g',{class:'zone', transform:'translate('+z.x+','+z.y+')', 'data-id':z.id});
+      var sel = selected && selected.type==='zone' && selected.id===z.id;
+      var rect = svgEl('rect',{x:0,y:0,width:z.w,height:z.h,rx:8,fill:'rgba(100,182,255,0.04)',stroke: sel?cssVar('--amber'):cssVar('--line'),'stroke-width': sel?3:1.5,'stroke-dasharray':'6 5'});
+      g.appendChild(rect);
+      var label = svgEl('text',{x:10,y:20,'font-family':'JetBrains Mono, monospace','font-weight':'700','font-size':'11',fill:cssVar('--cyan'),'letter-spacing':'0.5px'});
+      label.textContent = z.label.toUpperCase();
+      g.appendChild(label);
+
+      var handle = svgEl('rect',{class:'zone-resize', x:z.w-14, y:z.h-14, width:14, height:14, fill:cssVar('--line')});
+      g.appendChild(handle);
+
+      svg.appendChild(g);
+
+      g.addEventListener('pointerdown', function(e){
+        e.stopPropagation();
+        var target = e.target;
+        var pt = svgPoint(e);
+        if (target === handle){
+          dragging = {kind:'zone-resize', id:z.id};
+          dragOffset.x = pt.x - (z.x+z.w);
+          dragOffset.y = pt.y - (z.y+z.h);
+        } else {
+          dragging = {kind:'zone', id:z.id};
+          dragOffset.x = pt.x - z.x;
+          dragOffset.y = pt.y - z.y;
+        }
+        selected = {type:'zone', id:z.id};
+        render();
+      });
+    });
+
+    links.forEach(function(l){
+      var a = nodeById(l.a), b = nodeById(l.b);
+      if (!a || !b) return;
+      svg.appendChild(svgEl('line',{x1:a.x, y1:a.y, x2:b.x, y2:b.y, stroke:cssVar('--line'), 'stroke-width':2}));
+    });
+
+    nodes.forEach(function(n){
+      var g = svgEl('g',{class:'node', transform:'translate('+n.x+','+n.y+')', 'data-id':n.id});
+      var sel = (selected && selected.type==='node' && selected.id===n.id) || connectFirst===n.id;
+      if (sel) g.setAttribute('class','node selected');
+      shapeNode(g, n);
+      svg.appendChild(g);
+
+      g.addEventListener('pointerdown', function(e){
+        e.stopPropagation();
+        if (connectMode){
+          if (!connectFirst){ connectFirst = n.id; render(); }
+          else if (connectFirst !== n.id){ links.push({a:connectFirst, b:n.id}); connectFirst=null; render(); }
+          return;
+        }
+        selected = {type:'node', id:n.id};
+        var pt = svgPoint(e);
+        dragging = {kind:'node', id:n.id};
+        dragOffset.x = pt.x - n.x;
+        dragOffset.y = pt.y - n.y;
+        render();
+      });
+      g.addEventListener('dblclick', function(e){ e.stopPropagation(); editNode(n.id); });
+    });
+  }
+
+  function svgPoint(evt){
+    var rect = svg.getBoundingClientRect();
+    var vb = svg.viewBox.baseVal;
+    return { x:(evt.clientX-rect.left)*(vb.width/rect.width), y:(evt.clientY-rect.top)*(vb.height/rect.height) };
+  }
+
+  svg.addEventListener('pointermove', function(e){
+    if (!dragging) return;
+    var pt = svgPoint(e);
+    if (dragging.kind === 'node'){
+      var n = nodeById(dragging.id); if (!n) return;
+      n.x = pt.x - dragOffset.x; n.y = pt.y - dragOffset.y;
+    } else if (dragging.kind === 'zone'){
+      var z = zoneById(dragging.id); if (!z) return;
+      z.x = pt.x - dragOffset.x; z.y = pt.y - dragOffset.y;
+    } else if (dragging.kind === 'zone-resize'){
+      var z2 = zoneById(dragging.id); if (!z2) return;
+      z2.w = Math.max(140, (pt.x - dragOffset.x) - z2.x);
+      z2.h = Math.max(100, (pt.y - dragOffset.y) - z2.y);
+    }
+    render();
+  });
+  window.addEventListener('pointerup', function(){ dragging = null; });
+  svg.addEventListener('pointerdown', function(){ if (!connectMode){ selected = null; render(); } });
+
+  function editNode(id){
+    var n = nodeById(id); if (!n) return;
+    var newLabel = prompt('Label:', n.label); if (newLabel===null) return;
+    var newIp = prompt('IP / CIDR:', n.ip) || '';
+    var newVlan = prompt('VLAN:', n.vlan) || '';
+    n.label = newLabel; n.ip = newIp; n.vlan = newVlan;
+    render();
+  }
+  function editZone(id){
+    var z = zoneById(id); if (!z) return;
+    var newLabel = prompt('Zone name:', z.label); if (newLabel===null) return;
+    z.label = newLabel; render();
+  }
+
+  document.getElementById('addBtn').addEventListener('click', function(){
+    var type = document.getElementById('devType').value;
+    var label = document.getElementById('devLabel').value.trim();
+    var ip = document.getElementById('devIp').value.trim();
+    var vlan = document.getElementById('devVlan').value.trim();
+    addNode(type, label, ip, vlan);
+    document.getElementById('devLabel').value=''; document.getElementById('devIp').value=''; document.getElementById('devVlan').value='';
+  });
+
+  document.getElementById('addZoneBtn').addEventListener('click', function(){
+    var label = document.getElementById('zoneLabel').value.trim();
+    addZone(label);
+    document.getElementById('zoneLabel').value='';
+  });
+
+  document.getElementById('editBtn').addEventListener('click', function(){
+    if (!selected) return;
+    if (selected.type==='node') editNode(selected.id); else editZone(selected.id);
+  });
+
+  document.getElementById('connectBtn').addEventListener('click', function(){
+    connectMode = !connectMode; connectFirst=null; selected=null;
+    this.classList.toggle('active', connectMode);
+    render();
+  });
+
+  document.getElementById('deleteBtn').addEventListener('click', function(){
+    if (!selected) return;
+    if (selected.type==='node') removeNode(selected.id); else removeZone(selected.id);
+    selected = null; render();
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', function(){
+    if (confirm('Clear the whole diagram?')){ nodes=[]; links=[]; zones=[]; render(); }
+  });
+
+  document.getElementById('exportBtn').addEventListener('click', function(){
+    var bgColor = cssVar('--bg');
+    var clone = svg.cloneNode(true);
+    clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+    var bgRect = svgEl('rect',{x:0,y:0,width:1200,height:600,fill:bgColor});
+    clone.insertBefore(bgRect, clone.firstChild);
+    var svgData = new XMLSerializer().serializeToString(clone);
+    var img = new Image();
+    var svg64 = btoa(unescape(encodeURIComponent(svgData)));
+    img.onload = function(){
+      var canvas = document.createElement('canvas');
+      canvas.width = 1200; canvas.height = 600;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      var link = document.createElement('a');
+      link.download = 'network-diagram.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    };
+    img.src = 'data:image/svg+xml;base64,' + svg64;
+  });
+
+  addZone('HQ Network');
+  zones[0].x=60; zones[0].y=60; zones[0].w=760; zones[0].h=360;
+
+  addNode('internet','ISP Link','','');
+  addNode('firewall','Edge-FW','203.0.113.1/30','');
+  addNode('router','Core-Router','10.0.0.1/24','');
+  addNode('switch','Core-SW-01','10.0.0.2/24','10');
+  nodes[0].x=150; nodes[0].y=150;
+  nodes[1].x=350; nodes[1].y=150;
+  nodes[2].x=550; nodes[2].y=150;
+  nodes[3].x=550; nodes[3].y=320;
+  links.push({a:nodes[0].id,b:nodes[1].id});
+  links.push({a:nodes[1].id,b:nodes[2].id});
+  links.push({a:nodes[2].id,b:nodes[3].id});
+  render();
+})();
+</script>
+</body>
+</html>
