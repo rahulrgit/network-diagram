@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Internet Speed Test</title>
+<style>
+  :root{--bg:#0f1115;--card:#171a21;--text:#e8eaf0;--muted:#8b93a5;--accent:#4f8cff;--ok:#34d399;--border:#262b36}
+  @media (prefers-color-scheme: light){
+    :root{--bg:#f4f6fa;--card:#ffffff;--text:#161a22;--muted:#667085;--accent:#2563eb;--ok:#059669;--border:#e3e7ee}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+       background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+
+  /* ---- widget (copy #speedtest + this CSS block into your portfolio) ---- */
+  #speedtest{width:100%;max-width:440px;background:var(--card);border:1px solid var(--border);
+             border-radius:20px;padding:28px 24px;text-align:center}
+  #speedtest h2{margin:0 0 4px;font-size:1.25rem}
+  #speedtest .sub{margin:0 0 8px;color:var(--muted);font-size:.85rem}
+  #speedtest svg{width:100%;max-width:300px;display:block;margin:0 auto}
+  #speedtest .track{fill:none;stroke:var(--border);stroke-width:12;stroke-linecap:round}
+  #speedtest .bar{fill:none;stroke:var(--accent);stroke-width:12;stroke-linecap:round;
+                  stroke-dasharray:251.3;stroke-dashoffset:251.3;transition:stroke-dashoffset .25s linear}
+  #speedtest .val{font-size:34px;font-weight:700;fill:var(--text);text-anchor:middle}
+  #speedtest .unit{font-size:11px;fill:var(--muted);text-anchor:middle}
+  #speedtest .status{min-height:1.3em;margin:6px 0 16px;color:var(--muted);font-size:.9rem}
+  #speedtest .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+  #speedtest .tile{border:1px solid var(--border);border-radius:12px;padding:10px 8px}
+  #speedtest .tile small{display:block;color:var(--muted);font-size:.75rem;margin-bottom:2px}
+  #speedtest .tile b{font-size:1.15rem}
+  #speedtest .tile.active{border-color:var(--accent)}
+  #speedtest button{width:100%;padding:13px;border:0;border-radius:12px;background:var(--accent);
+                    color:#fff;font-size:1rem;font-weight:600;cursor:pointer}
+  #speedtest button:disabled{opacity:.6;cursor:not-allowed}
+  #speedtest .foot{margin:12px 0 0;color:var(--muted);font-size:.72rem}
+</style>
+</head>
+<body>
+
+<div id="speedtest">
+  <h2>Internet Speed Test</h2>
+  <p class="sub">Apni connection ki speed check karo</p>
+
+  <svg viewBox="0 0 200 120" aria-label="speed gauge">
+    <path class="track" d="M20 100 A80 80 0 0 1 180 100"/>
+    <path class="bar" id="st-bar" d="M20 100 A80 80 0 0 1 180 100"/>
+    <text class="val" id="st-val" x="100" y="88">0</text>
+    <text class="unit" x="100" y="108">Mbps</text>
+  </svg>
+  <div class="status" id="st-status">Start dabao</div>
+
+  <div class="grid">
+    <div class="tile" id="t-ping"><small>Ping</small><b id="r-ping">–</b></div>
+    <div class="tile" id="t-jitter"><small>Jitter</small><b id="r-jitter">–</b></div>
+    <div class="tile" id="t-down"><small>Download</small><b id="r-down">–</b></div>
+    <div class="tile" id="t-up"><small>Upload</small><b id="r-up">–</b></div>
+  </div>
+
+  <button id="st-btn">Start Test</button>
+  <p class="foot">Test ke dauraan baaki downloads / streaming band rakho. Server: Cloudflare.</p>
+</div>
+
+<script>
+(function () {
+  const BASE = "https://speed.cloudflare.com";
+  const STREAMS = 6;        // parallel connections
+  const SECONDS = 10;       // duration per phase
+  const WARMUP = 2.5;       // seconds discarded (TCP slow-start)
+
+  const $ = id => document.getElementById(id);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const sum = a => a.reduce((x, y) => x + y, 0);
+  const mbps = (bytes, sec) => sec > 0 ? bytes * 8 / sec / 1e6 : 0;
+  const fmt = v => v >= 100 ? v.toFixed(0) : v.toFixed(1);
+
+  function setGauge(v) {
+    const frac = Math.min(1, Math.log10(1 + v) / Math.log10(1001)); // log scale, 0-1000 Mbps
+    $("st-bar").style.strokeDashoffset = 251.3 * (1 - frac);
+    $("st-val").textContent = fmt(v);
+  }
+  function setActive(id) {
+    document.querySelectorAll("#speedtest .tile").forEach(t => t.classList.remove("active"));
+    if (id) $(id).classList.add("active");
+  }
+
+  // ---------------- latency ----------------
+  async function testLatency() {
+    const times = [];
+    for (let i = 0; i < 21; i++) {
+      const t = performance.now();
+      const r = await fetch(`${BASE}/__down?bytes=0&r=${Math.random()}`, { cache: "no-store" });
+      await r.arrayBuffer();
+      const dt = performance.now() - t;
+      if (i > 0) times.push(dt);           // pehli request handshake hoti hai, skip
+    }
+    const sorted = [...times].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    let jit = 0;
+    for (let i = 1; i < times.length; i++) jit += Math.abs(times[i] - times[i - 1]);
+    return { ping: median, jitter: jit / (times.length - 1) };
+  }
+
+  // ---------------- workers ----------------
+  async function dlWorker(i, counters, ctrl) {
+    while (!ctrl.signal.aborted) {
+      try {
+        const r = await fetch(`${BASE}/__down?bytes=100000000&r=${Math.random()}`,
+                              { signal: ctrl.signal, cache: "no-store" });
+        const reader = r.body.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          counters[i] += value.length;
+        }
+      } catch (e) {
+        if (ctrl.signal.aborted) return;
+        await sleep(200);
+      }
+    }
+  }
+
+  const UP_BLOB = (() => {
+    const chunk = new Uint8Array(1_000_000);
+    for (let o = 0; o < chunk.length; o += 65536)
+      crypto.getRandomValues(chunk.subarray(o, Math.min(o + 65536, chunk.length)));
+    return new Blob([chunk, chunk, chunk, chunk, chunk]);   // 5 MB per request
+  })();
+
+  async function ulWorker(i, counters, ctrl) {
+    while (!ctrl.signal.aborted) {
+      await new Promise(resolve => {
+        const x = new XMLHttpRequest();
+        let last = 0;
+        x.open("POST", `${BASE}/__up?r=${Math.random()}`);
+        x.upload.onprogress = e => { counters[i] += e.loaded - last; last = e.loaded; };
+        x.onload = x.onerror = x.onabort = x.ontimeout = resolve;
+        ctrl.signal.addEventListener("abort", () => x.abort(), { once: true });
+        x.send(UP_BLOB);
+      });
+      if (!ctrl.signal.aborted) await sleep(0);
+    }
+  }
+
+  // ---------------- phase runner ----------------
+  async function runPhase(worker) {
+    const counters = new Array(STREAMS).fill(0);
+    const ctrl = new AbortController();
+    const jobs = counters.map((_, i) => worker(i, counters, ctrl));
+    const t0 = performance.now();
+    const samples = [];
+
+    await new Promise(resolve => {
+      const iv = setInterval(() => {
+        const el = (performance.now() - t0) / 1000;
+        const total = sum(counters);
+        samples.push([el, total]);
+        const ref = samples.find(s => s[0] >= el - 1) || samples[0];   // ~1 sec live window
+        setGauge(mbps(total - ref[1], el - ref[0]));
+        $("st-status").textContent = (el < WARMUP ? "Warming up… " : "Measuring… ") +
+                                      Math.min(100, Math.round(el / SECONDS * 100)) + "%";
+        if (el >= SECONDS) { clearInterval(iv); resolve(); }
+      }, 250);
+    });
+
+    ctrl.abort();
+    await Promise.allSettled(jobs);
+
+    const base = samples.find(s => s[0] >= WARMUP) || samples[0];
+    const end = samples[samples.length - 1];
+    return mbps(end[1] - base[1], end[0] - base[0]);
+  }
+
+  // ---------------- main ----------------
+  async function start() {
+    const btn = $("st-btn");
+    btn.disabled = true;
+    ["r-ping", "r-jitter", "r-down", "r-up"].forEach(id => $(id).textContent = "–");
+    setGauge(0);
+    try {
+      $("st-status").textContent = "Ping check ho raha hai…";
+      setActive("t-ping");
+      const lat = await testLatency();
+      $("r-ping").textContent = lat.ping.toFixed(0) + " ms";
+      $("r-jitter").textContent = lat.jitter.toFixed(1) + " ms";
+
+      setActive("t-down");
+      const dl = await runPhase(dlWorker);
+      $("r-down").textContent = fmt(dl) + " Mbps";
+
+      setGauge(0);
+      setActive("t-up");
+      const ul = await runPhase(ulWorker);
+      $("r-up").textContent = fmt(ul) + " Mbps";
+
+      setGauge(dl);
+      $("st-status").textContent = "Test complete ✓";
+    } catch (e) {
+      $("st-status").textContent = "Error: internet check karo ya adblocker band karke dekho.";
+      console.error(e);
+    }
+    setActive(null);
+    btn.disabled = false;
+    btn.textContent = "Test Again";
+  }
+
+  $("st-btn").addEventListener("click", start);
+})();
+</script>
+</body>
+</html>
