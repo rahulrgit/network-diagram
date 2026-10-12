@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Network Diagram Builder | Rahul Rathod</title>
+<title>Live Network Visualizer | Rahul Rathod</title>
 <meta name="theme-color" content="#07111f">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%2307111f'/%3E%3Ctext x='32' y='46' font-family='monospace' font-size='40' font-weight='700' text-anchor='middle' fill='%2364b6ff'%3ER%3C/text%3E%3C/svg%3E">
 
@@ -26,10 +26,30 @@
   --green:#087a4d;--shadow:0 18px 50px rgba(36,72,110,.10);
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;overflow-x:hidden;position:relative;
   background-image:linear-gradient(rgba(100,182,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(100,182,255,.045) 1px,transparent 1px);
   background-size:32px 32px;}
 a{color:inherit}
+#particles{position:fixed;inset:0;z-index:0;pointer-events:none}
+.wrap{position:relative;z-index:1}
+
+h1{position:relative;animation:flicker 6s infinite;text-shadow:0 0 12px rgba(100,182,255,.55),0 0 2px rgba(94,230,168,.4)}
+@keyframes flicker{0%,93%,95%,97%,100%{opacity:1}94%{opacity:.55}96%{opacity:.85}}
+
+.stage-wrap{position:relative}
+.stage-wrap::before{content:"";position:absolute;left:0;right:0;height:2px;top:0;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:.7;
+  animation:scanline 4.5s linear infinite;pointer-events:none;z-index:5}
+@keyframes scanline{0%{top:0}100%{top:100%}}
+
+.flow-line{stroke-dasharray:7 7;animation:dashflow 0.9s linear infinite}
+@keyframes dashflow{to{stroke-dashoffset:-28}}
+
+.packet{filter:url(#glow)}
+.node rect,.node polygon,.node ellipse{filter:url(#nodeglow)}
+.live-pill{display:inline-flex;align-items:center;gap:6px;font:600 10px "JetBrains Mono",monospace;color:var(--green);letter-spacing:.08em;margin-left:10px;vertical-align:middle}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.5}}
 .wrap{max-width:1240px;margin:auto;padding:26px 22px 70px}
 .topbar{position:sticky;top:12px;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 15px;margin-bottom:22px;background:var(--panel);background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);backdrop-filter:blur(14px);box-shadow:var(--shadow)}
 .brand{font:600 12px "JetBrains Mono",monospace;color:var(--muted);letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
@@ -64,19 +84,20 @@ footer{text-align:center;color:var(--muted);font:400 11px "JetBrains Mono",monos
 </style>
 </head>
 <body>
+<canvas id="particles"></canvas>
 <div class="wrap">
 
 <header class="topbar">
-  <div class="brand">RAHUL-RATHOD // NETWORK DIAGRAM BUILDER</div>
+  <div class="brand">RAHUL-RATHOD // LIVE NETWORK VISUALIZER</div>
   <div class="actions">
     <a class="btn" href="https://rahulrgit.github.io/projects.html">← PROJECTS</a>
     <button id="theme" type="button">LIGHT/DARK</button>
   </div>
 </header>
 
-<div class="ref">TOOL — NETWORK DIAGRAM</div>
-<h1>Network Diagram Builder</h1>
-<span class="section-note">Design a full company network — every common device type, with IP/CIDR and VLAN, grouped into zones.</span>
+<div class="ref">TOOL — LIVE NETWORK VISUALIZER</div>
+<h1>Live Network Visualizer <span class="live-pill"><span class="live-dot"></span>LIVE TRAFFIC</span></h1>
+<span class="section-note">Design a full company network with animated live-traffic simulation — every common device type, IP/CIDR, VLAN, grouped into zones.</span>
 
 <div class="toolbar">
   <div class="toolbar-row">
@@ -150,7 +171,19 @@ footer{text-align:center;color:var(--muted);font:400 11px "JetBrains Mono",monos
 </div>
 
 <div class="stage-wrap">
-  <svg id="stage" viewBox="0 0 1200 600" xmlns="http://www.w3.org/2000/svg"></svg>
+  <svg id="stage" viewBox="0 0 1200 600" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="glow" x="-200%" y="-200%" width="500%" height="500%">
+        <feGaussianBlur stdDeviation="3.2" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="nodeglow" x="-80%" y="-80%" width="260%" height="260%">
+        <feGaussianBlur stdDeviation="1.4" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <g id="content"></g>
+  </svg>
 </div>
 
 <footer>REV.2026 · RAHUL RATHOD · KALYAN, MUMBAI</footer>
@@ -170,6 +203,7 @@ footer{text-align:center;color:var(--muted);font:400 11px "JetBrains Mono",monos
 
 (function(){
   var svg = document.getElementById('stage');
+  var content = document.getElementById('content');
   var nodes = [];
   var links = [];
   var zones = [];
@@ -287,7 +321,7 @@ footer{text-align:center;color:var(--muted);font:400 11px "JetBrains Mono",monos
   }
 
   function render(){
-    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    while (content.firstChild) content.removeChild(content.firstChild);
 
     zones.forEach(function(z){
       var g = svgEl('g',{class:'zone', transform:'translate('+z.x+','+z.y+')', 'data-id':z.id});
@@ -301,7 +335,7 @@ footer{text-align:center;color:var(--muted);font:400 11px "JetBrains Mono",monos
       var handle = svgEl('rect',{class:'zone-resize', x:z.w-14, y:z.h-14, width:14, height:14, fill:cssVar('--line')});
       g.appendChild(handle);
 
-      svg.appendChild(g);
+      content.appendChild(g);
 
       g.addEventListener('pointerdown', function(e){
         e.stopPropagation();
@@ -321,10 +355,12 @@ footer{text-align:center;color:var(--muted);font:400 11px "JetBrains Mono",monos
       });
     });
 
-    links.forEach(function(l){
+    links.forEach(function(l, idx){
       var a = nodeById(l.a), b = nodeById(l.b);
       if (!a || !b) return;
-      svg.appendChild(svgEl('line',{x1:a.x, y1:a.y, x2:b.x, y2:b.y, stroke:cssVar('--line'), 'stroke-width':2}));
+      content.appendChild(svgEl('line',{x1:a.x, y1:a.y, x2:b.x, y2:b.y, stroke:cssVar('--line'), 'stroke-width':2}));
+      content.appendChild(svgEl('line',{class:'flow-line', x1:a.x, y1:a.y, x2:b.x, y2:b.y, stroke:cssVar('--cyan'), 'stroke-width':1.4, opacity:'.55'}));
+      content.appendChild(svgEl('circle',{id:'pkt-'+idx, class:'packet', r:4, fill:cssVar('--green')}));
     });
 
     nodes.forEach(function(n){
@@ -332,7 +368,7 @@ footer{text-align:center;color:var(--muted);font:400 11px "JetBrains Mono",monos
       var sel = (selected && selected.type==='node' && selected.id===n.id) || connectFirst===n.id;
       if (sel) g.setAttribute('class','node selected');
       shapeNode(g, n);
-      svg.appendChild(g);
+      content.appendChild(g);
 
       g.addEventListener('pointerdown', function(e){
         e.stopPropagation();
@@ -442,7 +478,7 @@ footer{text-align:center;color:var(--muted);font:400 11px "JetBrains Mono",monos
       var ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0);
       var link = document.createElement('a');
-      link.download = 'network-diagram.png';
+      link.download = 'live-network-visualizer.png';
       link.href = canvas.toDataURL('image/png');
       link.click();
     };
@@ -464,6 +500,73 @@ footer{text-align:center;color:var(--muted);font:400 11px "JetBrains Mono",monos
   links.push({a:nodes[1].id,b:nodes[2].id});
   links.push({a:nodes[2].id,b:nodes[3].id});
   render();
+
+  (function animate(){
+    var t = Date.now()/1000;
+    links.forEach(function(l, idx){
+      var a = nodeById(l.a), b = nodeById(l.b);
+      var el = document.getElementById('pkt-'+idx);
+      if (!a || !b || !el) return;
+      var progress = (t*0.35 + idx*0.41) % 1;
+      el.setAttribute('cx', a.x + (b.x-a.x)*progress);
+      el.setAttribute('cy', a.y + (b.y-a.y)*progress);
+    });
+    requestAnimationFrame(animate);
+  })();
+})();
+</script>
+
+<script>
+(function(){
+  var canvas = document.getElementById('particles');
+  var ctx = canvas.getContext('2d');
+  var dots = [];
+  function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+
+  for (var i=0;i<70;i++){
+    dots.push({
+      x: Math.random()*canvas.width,
+      y: Math.random()*canvas.height,
+      vx: (Math.random()-0.5)*0.15,
+      vy: (Math.random()-0.5)*0.15,
+      r: Math.random()*1.6+0.4,
+      a: Math.random()*0.5+0.15
+    });
+  }
+
+  function isLight(){ return document.documentElement.getAttribute('data-theme')==='light'; }
+
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    var color = isLight() ? '23,99,177' : '100,182,255';
+    dots.forEach(function(d){
+      d.x += d.vx; d.y += d.vy;
+      if (d.x<0) d.x=canvas.width; if (d.x>canvas.width) d.x=0;
+      if (d.y<0) d.y=canvas.height; if (d.y>canvas.height) d.y=0;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba('+color+','+d.a+')';
+      ctx.fill();
+    });
+    for (var i=0;i<dots.length;i++){
+      for (var j=i+1;j<dots.length;j++){
+        var dx = dots[i].x-dots[j].x, dy = dots[i].y-dots[j].y;
+        var dist = Math.sqrt(dx*dx+dy*dy);
+        if (dist < 110){
+          ctx.beginPath();
+          ctx.moveTo(dots[i].x, dots[i].y);
+          ctx.lineTo(dots[j].x, dots[j].y);
+          ctx.strokeStyle = 'rgba('+color+','+(0.12*(1-dist/110))+')';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
 })();
 </script>
 </body>
